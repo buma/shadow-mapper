@@ -19,7 +19,7 @@ def next_time(t):
         t += delta
         print
 
-def shadowmap_for_time(t, hm, bkg, args):
+def shadowmap_for_time(t, hm, bkg, transparency, args):
     sunpos = solar_position(t, hm.lat, hm.lng)
     dev = get_projection_north_deviation(hm.proj, hm.lat, hm.lng)
     sun_x = -sin(sunpos['azimuth'] - dev) * cos(sunpos['altitude'])
@@ -31,6 +31,7 @@ def shadowmap_for_time(t, hm, bkg, args):
     img = img.convert('RGB')
 
     if bkg:
+        bkg = Image.open(bkg).convert('RGB')
         img = Image.eval(img, lambda x: x + transparency)
         img = ImageChops.multiply(img, bkg)
 
@@ -83,13 +84,13 @@ if __name__ == '__main__':
 
     bkg = None
     if args.background_map:
-        bkg = Image.open(args.background_map).convert('RGB')
+        bkg = args.background_map
         transparency = int(255 - args.opacity * 255)
 
 
     if args.n_jobs != 1:
-        out = Parallel(n_jobs=args.n_jobs, verbose=100)(delayed(shadowmap_for_time)(t, hm, bkg,
-            args) for t in next_time(t1))
+        out = Parallel(n_jobs=args.n_jobs, verbose=1)(delayed(shadowmap_for_time)(t, hm, bkg,
+            transparency, args) for t in next_time(t1))
     else:
         for t in next_time(t1):
-            shadowmap_for_time(t, hm, bkg, args)
+            shadowmap_for_time(t, hm, bkg, transparency, args)

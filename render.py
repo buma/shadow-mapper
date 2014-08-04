@@ -83,6 +83,7 @@ if __name__ == '__main__':
     delta = timedelta(minutes=args.interval)
 
     bkg = None
+    transparency = None
     if args.background_map:
         bkg = args.background_map
         transparency = int(255 - args.opacity * 255)

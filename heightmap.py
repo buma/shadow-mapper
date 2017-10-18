@@ -1,4 +1,5 @@
 #!/usr/bin/python
+import itertools
 from os import path
 from pyproj import Proj
 import numpy
@@ -65,6 +66,36 @@ class SrtmHeightMap(HeightMap):
         with open(p, 'rb') as f:
             return VTPTile(f, int(lat), int(lng))
 
+class GeoTiffHeightMap(HeightMap):
+    def __init__(self, lat, lng, resolution, size, proj, path_to_tiff):
+        HeightMap.__init__(self, lat, lng, resolution, size, proj)
+        print "GEOTIFF FILE:", path_to_tiff
+
+        try:
+            import rasterio
+        except ImportError:
+            print ("Rasterio is needed for reading geotiff please install it" +
+            "with pip install rasterio")
+            return
+
+        #Generates x,y in same order as lng, lat were generated
+        lxy = itertools.product(xrange(size), repeat=2)
+        with rasterio.open(path_to_tiff) as src:
+            read_heights = src.sample(self._generate_coordinates(size))
+
+            for v, (y, x) in itertools.izip(read_heights, lxy):
+                self.heights[y,x] = v[0]
+                #print y,x, v[0]
+
+    def _generate_coordinates(self, size):
+        for y in xrange(0, size):
+            cy = self.bounds[1] + y / float(size) * self.psize
+            for x in xrange(0, size):
+                cx = self.bounds[0] + x / float(size) * self.psize
+                lng, lat = proj(cx, cy, inverse=True)
+                #yield (lng, lat), (y, x)
+                yield (lng, lat)
+
 if __name__ == '__main__':
     import argparse
 
@@ -76,6 +107,7 @@ if __name__ == '__main__':
     parser.add_argument('--output', type=str, default=None, help='Output path/filename')
     parser.add_argument('--save-image', type=str, default=None, help='Image output path/filename')
     parser.add_argument('--elevation-dir', type=str, default='data', help='Directory path to find elevation .hgt files')
+    parser.add_argument('--geotiff-file', type=str, help='GTiff file with heights in 4326 EPSG')
     parser.add_argument('--geojson', type=str, required=True, help='Path for buildings GeoJSON')
 
     args = parser.parse_args()
@@ -87,7 +119,11 @@ if __name__ == '__main__':
 
     proj = Proj(init=args.projection)
 
-    elev = SrtmHeightMap(lat, lng, resolution, size, proj, args.elevation_dir)
+    if args.geotiff_file:
+        elev = GeoTiffHeightMap(lat, lng, resolution, size, proj,
+                args.geotiff_file)
+    else:
+        elev = SrtmHeightMap(lat, lng, resolution, size, proj, args.elevation_dir)
     with open(args.geojson, 'r') as f:
         buildings = OSMHeightMap(lat, lng, resolution, size, proj, f)
 

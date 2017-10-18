@@ -49,7 +49,8 @@ class SrtmHeightMap(HeightMap):
                     print 'Loaded tile', tile_key
 
                 v = tiles[tile_key].getAltitudeFromLatLon(lat, lng)
-                self.heights[y,x] = v
+                if v is not None:
+                    self.heights[y,x] = v
     @staticmethod
     def _tileKey(lat, lng):
         return '%s%02d%s%03d.hgt' % (
